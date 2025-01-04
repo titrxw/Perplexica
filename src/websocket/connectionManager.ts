@@ -1,4 +1,4 @@
-import { WebSocket } from 'ws';
+import { WebSocketServer } from 'ws';
 import { handleMessage } from './messageHandler';
 import {
   getAvailableEmbeddingModelProviders,
@@ -10,13 +10,12 @@ import type { IncomingMessage } from 'http';
 import logger from '../utils/logger';
 import { ChatOpenAI } from '@langchain/openai';
 
-export const handleConnection = async (
-  ws: WebSocket,
-  request: IncomingMessage,
-) => {
+export const handleUpgrade = async (request: IncomingMessage, socket: any, head: Buffer) => {
+  let llm: BaseChatModel | undefined;
+  let embeddings: Embeddings | undefined;
   try {
     const searchParams = new URL(request.url, `http://${request.headers.host}`)
-      .searchParams;
+        .searchParams;
 
     const [chatModelProviders, embeddingModelProviders] = await Promise.all([
       getAvailableChatModelProviders(),
@@ -24,29 +23,27 @@ export const handleConnection = async (
     ]);
 
     const chatModelProvider =
-      searchParams.get('chatModelProvider') ||
-      Object.keys(chatModelProviders)[0];
+        searchParams.get('chatModelProvider') ||
+        Object.keys(chatModelProviders)[0];
     const chatModel =
-      searchParams.get('chatModel') ||
-      Object.keys(chatModelProviders[chatModelProvider])[0];
+        searchParams.get('chatModel') ||
+        Object.keys(chatModelProviders[chatModelProvider])[0];
 
     const embeddingModelProvider =
-      searchParams.get('embeddingModelProvider') ||
-      Object.keys(embeddingModelProviders)[0];
+        searchParams.get('embeddingModelProvider') ||
+        Object.keys(embeddingModelProviders)[0];
     const embeddingModel =
-      searchParams.get('embeddingModel') ||
-      Object.keys(embeddingModelProviders[embeddingModelProvider])[0];
+        searchParams.get('embeddingModel') ||
+        Object.keys(embeddingModelProviders[embeddingModelProvider])[0];
 
-    let llm: BaseChatModel | undefined;
-    let embeddings: Embeddings | undefined;
 
     if (
-      chatModelProviders[chatModelProvider] &&
-      chatModelProviders[chatModelProvider][chatModel] &&
-      chatModelProvider != 'custom_openai'
+        chatModelProviders[chatModelProvider] &&
+        chatModelProviders[chatModelProvider][chatModel] &&
+        chatModelProvider != 'custom_openai'
     ) {
       llm = chatModelProviders[chatModelProvider][chatModel]
-        .model as unknown as BaseChatModel | undefined;
+          .model as unknown as BaseChatModel | undefined;
     } else if (chatModelProvider == 'custom_openai') {
       llm = new ChatOpenAI({
         modelName: chatModel,
@@ -59,53 +56,45 @@ export const handleConnection = async (
     }
 
     if (
-      embeddingModelProviders[embeddingModelProvider] &&
-      embeddingModelProviders[embeddingModelProvider][embeddingModel]
+        embeddingModelProviders[embeddingModelProvider] &&
+        embeddingModelProviders[embeddingModelProvider][embeddingModel]
     ) {
       embeddings = embeddingModelProviders[embeddingModelProvider][
-        embeddingModel
-      ].model as Embeddings | undefined;
+          embeddingModel
+          ].model as Embeddings | undefined;
     }
 
     if (!llm || !embeddings) {
-      ws.send(
-        JSON.stringify({
-          type: 'error',
-          data: 'Invalid LLM or embeddings model selected, please refresh the page and try again.',
-          key: 'INVALID_MODEL_SELECTED',
-        }),
-      );
-      ws.close();
+      throw new Error("Invalid LLM or embeddings model selected, please refresh the page and try again.")
     }
-
-    const interval = setInterval(() => {
-      if (ws.readyState === ws.OPEN) {
-        ws.send(
-          JSON.stringify({
-            type: 'signal',
-            data: 'open',
-          }),
-        );
-        clearInterval(interval);
-      }
-    }, 5);
-
-    ws.on(
-      'message',
-      async (message) =>
-        await handleMessage(message.toString(), ws, llm, embeddings),
-    );
-
-    ws.on('close', () => logger.debug('Connection closed'));
   } catch (err) {
-    ws.send(
-      JSON.stringify({
-        type: 'error',
-        data: 'Internal server error.',
-        key: 'INTERNAL_SERVER_ERROR',
-      }),
-    );
-    ws.close();
+    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+    socket.destroy();
     logger.error(err);
   }
+
+  // 创建 WebSocket 连接
+  const wss = new WebSocketServer({ noServer: true });
+  wss.handleUpgrade(request, socket, head, function (ws) {
+      const interval = setInterval(() => {
+        if (ws.readyState === ws.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: 'signal',
+              data: 'open',
+            }),
+          );
+          clearInterval(interval);
+        }
+      }, 5);
+      wss.emit('connection', ws, request);
+
+      ws.on(
+        'message',
+        async (message) =>
+          await handleMessage(message.toString(), ws, llm, embeddings),
+      );
+
+      ws.on('close', () => logger.debug('Connection closed'));
+  });
 };

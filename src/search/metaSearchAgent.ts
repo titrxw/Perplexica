@@ -81,7 +81,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
           ? await questionOutputParser.parse(input)
           : input;
 
-        if (question === 'not_needed') {
+        if (question === 'not_needed' || question === '') {
           return { query: '', docs: [] };
         }
 
@@ -204,7 +204,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
           return { query: question, docs: docs };
         } else {
           const res = await searchSearxng(question, {
-            language: 'en',
+            language: 'auto',
             engines: this.config.activeEngines,
           });
 

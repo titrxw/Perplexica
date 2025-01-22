@@ -61,7 +61,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
     this.config = config;
   }
 
-  private async createSearchRetrieverChain(llm: BaseChatModel, network: boolean) {
+  private async createSearchRetrieverChain(llm: BaseChatModel, query: string, network: boolean) {
     (llm as unknown as ChatOpenAI).temperature = 0;
 
     return RunnableSequence.from([
@@ -82,8 +82,12 @@ class MetaSearchAgent implements MetaSearchAgentType {
           ? await questionOutputParser.parse(input)
           : input;
 
-        if (!network && (question === 'not_needed' || question === '')) {
-          return { query: '', docs: [] };
+        if (network && (question === 'not_needed' || question === '')) {
+          question = query;
+        }
+
+        if (question === 'not_needed' || question === '') {
+            return { query: '', docs: [] };
         }
 
         if (links.length > 0) {
@@ -253,16 +257,21 @@ class MetaSearchAgent implements MetaSearchAgentType {
           let query = input.query;
 
           if (this.config.searchWeb) {
-            const searchRetrieverChain =
-              await this.createSearchRetrieverChain(llm, network);
+            try {
+              const searchRetrieverChain =
+                  await this.createSearchRetrieverChain(llm, query, network);
 
-            const searchRetrieverResult = await searchRetrieverChain.invoke({
-              chat_history: processedHistory,
-              query,
-            });
+              const searchRetrieverResult = await searchRetrieverChain.invoke({
+                chat_history: processedHistory,
+                query,
+              });
 
-            query = searchRetrieverResult.query;
-            docs = searchRetrieverResult.docs;
+              query = searchRetrieverResult.query;
+              docs = searchRetrieverResult.docs;
+            } catch (e) {
+              console.log("searxng error");
+              console.log(e);
+            }
           }
 
           const sortedDocs = await this.rerankDocs(

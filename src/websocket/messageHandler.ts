@@ -26,6 +26,7 @@ type WSMessage = {
   focusMode: string;
   history: Array<[string, string]>;
   files: Array<string>;
+  network: boolean;
 };
 
 export const searchHandlers = {
@@ -197,6 +198,7 @@ export const handleMessage = async (
             embeddings,
             parsedWSMessage.optimizationMode,
             parsedWSMessage.files,
+              parsedWSMessage.network,
           );
 
           handleEmitterEvents(emitter, ws, aiMessageId, parsedMessage.chatId);

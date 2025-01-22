@@ -34,6 +34,7 @@ export interface MetaSearchAgentType {
     embeddings: Embeddings,
     optimizationMode: 'speed' | 'balanced' | 'quality',
     fileIds: string[],
+    network: boolean,
   ) => Promise<eventEmitter>;
 }
 
@@ -60,7 +61,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
     this.config = config;
   }
 
-  private async createSearchRetrieverChain(llm: BaseChatModel) {
+  private async createSearchRetrieverChain(llm: BaseChatModel, network: boolean) {
     (llm as unknown as ChatOpenAI).temperature = 0;
 
     return RunnableSequence.from([
@@ -81,7 +82,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
           ? await questionOutputParser.parse(input)
           : input;
 
-        if (question === 'not_needed' || question === '') {
+        if (!network && (question === 'not_needed' || question === '')) {
           return { query: '', docs: [] };
         }
 
@@ -235,6 +236,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
     fileIds: string[],
     embeddings: Embeddings,
     optimizationMode: 'speed' | 'balanced' | 'quality',
+    network: boolean
   ) {
     let question = '';
     return RunnableSequence.from([
@@ -252,7 +254,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
 
           if (this.config.searchWeb) {
             const searchRetrieverChain =
-              await this.createSearchRetrieverChain(llm);
+              await this.createSearchRetrieverChain(llm, network);
 
             const searchRetrieverResult = await searchRetrieverChain.invoke({
               chat_history: processedHistory,
@@ -594,6 +596,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
     embeddings: Embeddings,
     optimizationMode: 'speed' | 'balanced' | 'quality',
     fileIds: string[],
+    network: boolean
   ) {
     const emitter = new eventEmitter();
 
@@ -602,6 +605,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
       fileIds,
       embeddings,
       optimizationMode,
+        network
     );
 
     const stream = answeringChain.streamEvents(

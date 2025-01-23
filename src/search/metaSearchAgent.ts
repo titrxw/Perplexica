@@ -247,7 +247,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
       RunnableMap.from({
         query: (input: BasicChainInput) => input.query,
         chat_history: (input: BasicChainInput) => input.chat_history,
-        date: () => new Date().toISOString(),
+        date: () => new Date().toLocaleString(),
         context: RunnableLambda.from(async (input: BasicChainInput) => {
           const processedHistory = formatChatHistoryAsString(
             input.chat_history,
@@ -443,8 +443,16 @@ class MetaSearchAgent implements MetaSearchAgentType {
     if (docs.length > 0 && optimizationMode == 'balanced') {
       let links = []
       docs.forEach(function (item : Document) {
-        links.push(item.metadata.url);
+        if (item.metadata.url != "") {
+          links.push(item.metadata.url);
+        }
       })
+      if (links.length == 0) {
+        return docs;
+      }
+
+
+      console.log("search links", links)
       if (question.length === 0) {
         question = 'summarize';
       }

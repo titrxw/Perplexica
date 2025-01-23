@@ -290,13 +290,16 @@ class MetaSearchAgent implements MetaSearchAgentType {
             runName: 'FinalSourceRetriever',
           })
           .pipe(async (docs: Document[]) => {
-            try{
-              docs = await this.queryDocs(docs, llm, question, optimizationMode);
-            } catch (e) {
-              //
+            if (network) {
+              try{
+                docs = await this.queryDocs(docs, llm, question, optimizationMode);
+              } catch (e) {
+                //
+              }
+
+              console.log(456, docs);
             }
 
-            console.log(456, docs);
             return this.processDocs(docs)
           }),
       }),

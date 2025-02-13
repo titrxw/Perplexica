@@ -256,7 +256,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
           let docs: Document[] | null = null;
           let query = input.query;
 
-          if (this.config.searchWeb) {
+          if (this.config.searchWeb && network) {
             try {
               const searchRetrieverChain =
                   await this.createSearchRetrieverChain(llm, query, network);

@@ -11,6 +11,7 @@ COPY yarn.lock /home/perplexica/
 RUN mkdir /home/perplexica/data
 RUN mkdir /home/perplexica/uploads
 
+RUN yarn config set registry https://registry.npmmirror.com/
 RUN yarn install --frozen-lockfile --network-timeout 600000
 RUN yarn build
 

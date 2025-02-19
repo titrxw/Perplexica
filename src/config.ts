@@ -20,6 +20,9 @@ interface Config {
     SEARXNG: string;
     OLLAMA: string;
   };
+  UPLOAD:{
+    TEXT_LENGTH: string
+  }
 }
 
 type RecursivePartial<T> = {
@@ -51,6 +54,9 @@ export const getSearxngApiEndpoint = () =>
 
 export const getOllamaApiEndpoint = () =>
     process.env.OLLAMA_API_URL || loadConfig().API_ENDPOINTS.OLLAMA;
+
+export const getUploadTextLength = () =>
+    process.env.OLLAMA_UPLOAD_TEXY_LENGTH || loadConfig().UPLOAD.TEXT_LENGTH;
 
 export const updateConfig = (config: RecursivePartial<Config>) => {
   const currentConfig = loadConfig();

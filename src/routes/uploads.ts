@@ -10,6 +10,7 @@ import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
 import { DocxLoader } from '@langchain/community/document_loaders/fs/docx';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { Document } from 'langchain/document';
+import { getUploadTextLength } from '../config'
 
 const router = express.Router();
 
@@ -104,6 +105,23 @@ router.post(
               }),
             ];
           }
+
+          let textLength = parseInt(getUploadTextLength())
+            if (textLength > 0) {
+                docs = docs.map(doc => {
+                    // 类型守卫确保 pageContent 是字符串
+                    const content = typeof doc.pageContent === 'string' ? doc.pageContent : '';
+
+                    if (content.length > textLength) {
+                        return new Document({
+                            pageContent: content.slice(0, textLength),
+                            metadata: { ...doc.metadata }
+                        });
+                    }
+
+                    return doc;
+                });
+            }
 
           const splitted = await splitter.splitDocuments(docs);
 
